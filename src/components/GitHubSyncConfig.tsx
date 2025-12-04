@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Github, Key, CheckCircle, XCircle, Loader, Save, Download, Upload } from 'lucide-react';
+import { Github, Key, CheckCircle, XCircle, Loader, Save, Download } from 'lucide-react';
 import { getGitHubToken, setGitHubToken, removeGitHubToken, verifyToken, loadFromGitHub, saveToGitHub } from '../services/githubSync';
 import type { AppData } from '../types';
 import type { ToastData } from './Toast';

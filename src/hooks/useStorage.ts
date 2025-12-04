@@ -28,7 +28,7 @@ const getInitialState = (): StorageState => {
 
 export function useStorage() {
   const [state, setState] = useState<StorageState>(getInitialState);
-  const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const autoSaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isInitialMount = useRef(true);
 
   // Persist to localStorage whenever state changes
