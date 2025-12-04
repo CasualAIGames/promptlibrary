@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import type { Prompt, Project, AppData } from '../types';
+import { getGitHubToken, saveToGitHub } from '../services/githubSync';
 
 const STORAGE_KEY = 'prompt-library-data';
 const VERSION = '1.0.0';
@@ -27,6 +28,8 @@ const getInitialState = (): StorageState => {
 
 export function useStorage() {
   const [state, setState] = useState<StorageState>(getInitialState);
+  const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const isInitialMount = useRef(true);
 
   // Persist to localStorage whenever state changes
   useEffect(() => {
@@ -37,7 +40,36 @@ export function useStorage() {
       exportedAt: new Date().toISOString(),
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+
+    // Auto-guardar en GitHub después de 2 segundos de inactividad (debounce)
+    // Solo si no es el mount inicial y hay token configurado
+    if (!isInitialMount.current && getGitHubToken()) {
+      if (autoSaveTimeoutRef.current) {
+        clearTimeout(autoSaveTimeoutRef.current);
+      }
+      
+      autoSaveTimeoutRef.current = setTimeout(async () => {
+        try {
+          await saveToGitHub(data);
+          console.log('Auto-guardado en GitHub exitoso');
+        } catch (error) {
+          console.error('Error en auto-guardado:', error);
+          // No mostrar error al usuario, es silencioso
+        }
+      }, 2000); // Esperar 2 segundos después del último cambio
+    }
+
+    isInitialMount.current = false;
   }, [state]);
+
+  // Limpiar timeout al desmontar
+  useEffect(() => {
+    return () => {
+      if (autoSaveTimeoutRef.current) {
+        clearTimeout(autoSaveTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Prompt operations
   const addPrompt = useCallback((prompt: Omit<Prompt, 'id' | 'createdAt' | 'updatedAt'>) => {

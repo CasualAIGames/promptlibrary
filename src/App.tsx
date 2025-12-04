@@ -15,16 +15,18 @@ import {
   ProjectDetail,
   Toast,
   SearchBar,
+  GitHubSyncConfig,
 } from './components';
 import type { ToastData } from './components';
 import { useStorage } from './hooks/useStorage';
-import type { ViewMode, Prompt, Project, PromptCategory } from './types';
+import { getGitHubToken, loadFromGitHub } from './services/githubSync';
+import type { ViewMode, Prompt, Project, PromptCategory, AppData } from './types';
 
 function App() {
   // State
   const [activeTab, setActiveTab] = useState<ViewMode>('prompts');
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
-  const [modalType, setModalType] = useState<'prompt' | 'project' | 'view-prompt' | null>(null);
+  const [modalType, setModalType] = useState<'prompt' | 'project' | 'view-prompt' | 'github-sync' | null>(null);
   const [editingPrompt, setEditingPrompt] = useState<Prompt | null>(null);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [viewingPrompt, setViewingPrompt] = useState<Prompt | null>(null);
@@ -60,6 +62,31 @@ function App() {
   const dismissToast = useCallback((id: string) => {
     setToasts(prev => prev.filter(t => t.id !== id));
   }, []);
+
+  // Carga automática desde GitHub al iniciar
+  useEffect(() => {
+    const loadFromGitHubOnStart = async () => {
+      const token = getGitHubToken();
+      if (!token) return;
+
+      try {
+        const data = await loadFromGitHub();
+        if (data && (data.prompts.length > 0 || data.projects.length > 0)) {
+          // Solo cargar si hay datos y si el localStorage está vacío o tiene menos datos
+          const localData = localStorage.getItem('prompt-library-data');
+          if (!localData || JSON.parse(localData).prompts.length < data.prompts.length) {
+            importData(JSON.stringify(data));
+            showToast('success', 'Datos sincronizados desde GitHub');
+          }
+        }
+      } catch (error) {
+        // Silencioso, no mostrar error si falla la carga automática
+        console.log('No se pudo cargar desde GitHub (puede ser normal si es la primera vez)');
+      }
+    };
+
+    loadFromGitHubOnStart();
+  }, []); // Solo al montar
 
   // Import JSON event listener
   useEffect(() => {
@@ -98,9 +125,19 @@ function App() {
     // The actual import is handled by the file input in Header
   };
 
-  // Sync handler (simulated)
+  // Sync handler - Abre modal de configuración de GitHub
   const handleSync = () => {
-    showToast('info', 'Sincronización: Exporta el JSON y súbelo a tu repositorio de GitHub');
+    setModalType('github-sync');
+  };
+
+  // Handler para importar desde GitHub
+  const handleImportFromGitHub = (data: AppData) => {
+    const success = importData(JSON.stringify(data));
+    if (success) {
+      showToast('success', 'Datos importados desde GitHub correctamente');
+    } else {
+      showToast('error', 'Error al importar los datos');
+    }
   };
 
   // Prompt handlers
@@ -389,6 +426,25 @@ function App() {
             onClose={() => { setModalType(null); setViewingPrompt(null); }}
           />
         )}
+      </Modal>
+
+      <Modal
+        isOpen={modalType === 'github-sync'}
+        onClose={() => setModalType(null)}
+        title="Sincronización con GitHub"
+        size="lg"
+      >
+        <GitHubSyncConfig
+          onClose={() => setModalType(null)}
+          onImport={handleImportFromGitHub}
+          onShowToast={(toast) => showToast(toast.type, toast.message)}
+          currentData={{
+            prompts,
+            projects,
+            version: '1.0.0',
+            exportedAt: new Date().toISOString(),
+          }}
+        />
       </Modal>
 
       {/* Toast Notifications */}

@@ -12,4 +12,5 @@ export { ProjectDetail } from './ProjectDetail';
 export { Toast } from './Toast';
 export type { ToastData } from './Toast';
 export { SearchBar } from './SearchBar';
+export { GitHubSyncConfig } from './GitHubSyncConfig';
 
