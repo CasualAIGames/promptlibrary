@@ -2,7 +2,6 @@ import { motion } from 'framer-motion';
 import { ArrowLeft, Plus, Edit2, Trash2, Image as ImageIcon } from 'lucide-react';
 import type { Project, Prompt } from '../types';
 import { PromptCard } from './PromptCard';
-import { EmptyState } from './EmptyState';
 
 interface ProjectDetailProps {
   project: Project;

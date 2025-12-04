@@ -157,7 +157,7 @@ function App() {
         setSelectedProject({ ...selectedProject, ...data });
       }
     } else {
-      const newProject = addProject(data);
+      addProject(data);
       showToast('success', 'Proyecto creado');
     }
     setModalType(null);
