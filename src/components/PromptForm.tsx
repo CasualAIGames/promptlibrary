@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { ImagePlus, X, Save, Tag } from 'lucide-react';
+import { ImagePlus, X, Save, Tag, Loader } from 'lucide-react';
 import type { Prompt, PromptCategory, Project } from '../types';
+import { compressImage } from '../utils/imageUtils';
 
 interface PromptFormProps {
   prompt?: Prompt | null;
@@ -25,6 +26,7 @@ export function PromptForm({ prompt, projects, currentProjectId, onSave, onCance
   const [tagInput, setTagInput] = useState('');
   const [imageUrl, setImageUrl] = useState(prompt?.imageUrl || '');
   const [projectId, setProjectId] = useState(prompt?.projectId || currentProjectId || '');
+  const [isCompressing, setIsCompressing] = useState(false);
 
   useEffect(() => {
     if (prompt) {
@@ -37,14 +39,25 @@ export function PromptForm({ prompt, projects, currentProjectId, onSave, onCance
     }
   }, [prompt]);
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        setImageUrl(event.target?.result as string);
-      };
-      reader.readAsDataURL(file);
+      setIsCompressing(true);
+      try {
+        // Comprimir imagen antes de guardar (max 1920x1080, calidad 70%)
+        const compressed = await compressImage(file, 1920, 1080, 0.7);
+        setImageUrl(compressed);
+      } catch (error) {
+        console.error('Error al comprimir imagen:', error);
+        // Fallback: usar imagen sin comprimir si falla la compresión
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          setImageUrl(event.target?.result as string);
+        };
+        reader.readAsDataURL(file);
+      } finally {
+        setIsCompressing(false);
+      }
     }
   };
 
@@ -219,17 +232,29 @@ export function PromptForm({ prompt, projects, currentProjectId, onSave, onCance
             </div>
           ) : (
             <label className="flex flex-col items-center justify-center py-6 cursor-pointer">
-              <ImagePlus className="w-10 h-10 text-text-muted mb-2" />
-              <span className="text-sm text-text-secondary">
-                Arrastra una imagen o haz clic para subir
-              </span>
-              <span className="text-xs text-text-muted mt-1">
-                PNG, JPG, WEBP hasta 10MB
-              </span>
+              {isCompressing ? (
+                <>
+                  <Loader className="w-10 h-10 text-lime-accent mb-2 animate-spin" />
+                  <span className="text-sm text-lime-accent">
+                    Comprimiendo imagen...
+                  </span>
+                </>
+              ) : (
+                <>
+                  <ImagePlus className="w-10 h-10 text-text-muted mb-2" />
+                  <span className="text-sm text-text-secondary">
+                    Arrastra una imagen o haz clic para subir
+                  </span>
+                  <span className="text-xs text-text-muted mt-1">
+                    PNG, JPG, WEBP (se comprimirá automáticamente)
+                  </span>
+                </>
+              )}
               <input
                 type="file"
                 accept="image/*"
                 onChange={handleImageUpload}
+                disabled={isCompressing}
                 className="hidden"
               />
             </label>

@@ -39,7 +39,40 @@ export function useStorage() {
       version: VERSION,
       exportedAt: new Date().toISOString(),
     };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    
+    try {
+      const jsonData = JSON.stringify(data);
+      localStorage.setItem(STORAGE_KEY, jsonData);
+    } catch (error: any) {
+      if (error.name === 'QuotaExceededError' || error.message?.includes('quota')) {
+        console.error('localStorage lleno. Intenta eliminar algunos prompts con imágenes grandes o usa la sincronización con GitHub.');
+        // Intentar guardar sin imágenes grandes como fallback
+        const dataWithoutLargeImages: AppData = {
+          ...data,
+          prompts: data.prompts.map(p => {
+            // Si la imagen es muy grande (más de 500KB), eliminar temporalmente
+            if (p.imageUrl && p.imageUrl.length > 500000) {
+              return { ...p, imageUrl: undefined };
+            }
+            return p;
+          }),
+          projects: data.projects.map(p => {
+            if (p.thumbnailUrl && p.thumbnailUrl.length > 500000) {
+              return { ...p, thumbnailUrl: undefined };
+            }
+            return p;
+          }),
+        };
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(dataWithoutLargeImages));
+          console.warn('Guardado sin imágenes grandes. Usa GitHub Sync para guardar todas las imágenes.');
+        } catch (e) {
+          console.error('No se pudo guardar ni siquiera sin imágenes grandes. Limpia localStorage o usa GitHub Sync.');
+        }
+      } else {
+        console.error('Error al guardar en localStorage:', error);
+      }
+    }
 
     // Auto-guardar en GitHub después de 2 segundos de inactividad (debounce)
     // Solo si no es el mount inicial y hay token configurado
