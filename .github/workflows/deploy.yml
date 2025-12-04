@@ -43,6 +43,12 @@ jobs:
         uses: actions/upload-pages-artifact@v3
         with:
           path: './dist'
+          
+      - name: Verify build
+        run: |
+          echo "Verifying build output..."
+          ls -la dist/
+          cat dist/index.html | head -20
 
   deploy:
     environment:
